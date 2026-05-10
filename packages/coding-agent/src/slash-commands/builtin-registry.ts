@@ -31,6 +31,7 @@ import { commandConsumed, errorMessage, parseSlashCommand, parseSubcommand, usag
 import { handleSshAcp } from "./helpers/ssh";
 import { handleTodoAcp } from "./helpers/todo";
 import { buildUsageReportText } from "./helpers/usage-report";
+import { getActiveChannel, WechatChannel } from "../wechat/channel";
 import { parseMarketplaceInstallArgs, parsePluginScopeArgs } from "./marketplace-install-parser";
 import type {
 	BuiltinSlashCommand,
@@ -1639,6 +1640,49 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 		name: "quit",
 		description: "Quit the application",
 		handleTui: shutdownHandlerTui,
+	},
+
+	{
+		name: "wechat",
+		description: "Toggle WeChat channel (bridge WeChat messages into this session)",
+		subcommands: [
+			{ name: "start", description: "Start WeChat channel" },
+			{ name: "stop", description: "Stop WeChat channel" },
+		],
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			const existing = getActiveChannel();
+			const sub = command.args.trim().toLowerCase();
+
+			if (sub === "stop") {
+				if (existing?.isRunning) {
+					existing.detach();
+					runtime.ctx.showStatus("WeChat channel stopped.");
+				} else {
+					runtime.ctx.showStatus("WeChat channel is not running.");
+				}
+				runtime.ctx.editor.setText("");
+				return;
+			}
+
+			// Default: /wechat or /wechat start
+			if (existing?.isRunning) {
+				runtime.ctx.showStatus("WeChat channel is already running.");
+				runtime.ctx.editor.setText("");
+				return;
+			}
+
+			try {
+				const channel = new WechatChannel();
+				await channel.attach(runtime.ctx.session);
+				runtime.ctx.showStatus("WeChat channel active — messages will appear here.");
+			} catch (err) {
+				runtime.ctx.showError(
+					err instanceof Error ? err.message : "Failed to start WeChat channel",
+				);
+			}
+			runtime.ctx.editor.setText("");
+		},
 	},
 ];
 

@@ -27,6 +27,7 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 
 process.title = APP_NAME;
 
+
 async function showHelp(config: CliConfig): Promise<void> {
 	const { renderRootHelp } = await import("@oh-my-pi/pi-utils/cli");
 	const { getExtraHelpText } = await import("./cli/args");

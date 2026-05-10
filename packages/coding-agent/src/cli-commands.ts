@@ -33,6 +33,7 @@ export const commands: CommandEntry[] = [
 	{ name: "tiny-models", load: () => import("./commands/tiny-models").then(m => m.default) },
 	{ name: "worktree", load: () => import("./commands/worktree").then(m => m.default), aliases: ["wt"] },
 	{ name: "search", load: () => import("./commands/web-search").then(m => m.default), aliases: ["q"] },
+	{ name: "wechat", load: () => import("./commands/wechat").then(m => m.default) },
 ];
 
 /**

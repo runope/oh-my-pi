@@ -52,6 +52,9 @@ export interface Args {
 	fileArgs: string[];
 	/** Unknown flags (potentially extension flags) - map of flag name to value */
 	unknownFlags: Map<string, boolean | string>;
+
+	/** Enable WeChat channel — bridge WeChat messages into this session */
+	wechat?: boolean;
 }
 
 export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { type: "boolean" | "string" }>): Args {
@@ -203,7 +206,7 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.noRules = true;
 		} else if (arg === "--no-title") {
 			result.noTitle = true;
-		} else if (arg === "--auto-approve" || arg === "--yolo") {
+	} else if (arg === "--auto-approve" || arg === "--yolo") {
 			result.autoApprove = true;
 		} else if (arg === "--approval-mode" && i + 1 < args.length) {
 			const mode = args[++i];
@@ -215,6 +218,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 					validValues: ["always-ask", "write", "yolo"],
 				});
 			}
+		} else if (arg === "--wechat") {
+			result.wechat = true;
 		} else if (arg === "--skills" && i + 1 < args.length) {
 			// Comma-separated glob patterns for skill filtering
 			result.skills = args[++i].split(",").map(s => s.trim());

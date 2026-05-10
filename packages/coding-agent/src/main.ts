@@ -70,6 +70,8 @@ import type { LspStartupServerInfo } from "./tools";
 import { getChangelogPath, getNewEntries, parseChangelog } from "./utils/changelog";
 import { EventBus } from "./utils/event-bus";
 
+import { WechatChannel } from "./wechat/channel";
+
 async function checkForNewVersion(currentVersion: string): Promise<string | undefined> {
 	if (!settings.get("startup.checkUpdate")) {
 		return;
@@ -1027,6 +1029,18 @@ export async function runRootCommand(
 			}
 
 			logger.endTiming();
+
+			// Attach WeChat channel if --wechat flag is set
+			if (parsedArgs.wechat) {
+				try {
+					const wechatChannel = new WechatChannel({ cwd: parsedArgs.cwd });
+					await wechatChannel.attach(session);
+					notifs.push({ kind: "info", message: "WeChat channel active \u2014 messages from WeChat will appear here" });
+				} catch (err) {
+					const wechatError = err instanceof Error ? err.message : String(err);
+					notifs.push({ kind: "error", message: `WeChat channel failed: ${wechatError}` });
+				}
+			}
 			await runInteractiveMode(
 				session,
 				VERSION,
