@@ -19,6 +19,8 @@ This repo contains multiple packages, but **`packages/coding-agent/`** is the pr
 | `packages/utils`        | Shared utilities (logger, streams, temp files)       |
 | `crates/pi-natives`     | Rust crate for performance-critical text/grep ops    |
 
+docs/solutions/  # 已记录的问题解决方案（bug、最佳实践、工作流模式），按分类组织，YAML frontmatter 可搜索
+
 ## Code Quality
 
 - No `any` unless absolutely necessary.

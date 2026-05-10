@@ -1,0 +1,18 @@
+id: task-01
+title: study-superpowers-for-workflow-insights
+status: done
+depends_on: []
+size: M
+estimate: 30m
+goal: 研究 superpowers 项目的 skill 触发机制和子代理驱动开发流程，提取可应用于 oh-my-pi workflow 的设计改进
+steps:
+  - 深读 superpowers 的 skill 触发机制（hooks/session-start、CLAUDE.md 中的 skill 调度逻辑），理解 skill 如何自动激活而非需要用户手动调用
+  - 深读 subagent-driven-development 的两阶段评审流程（spec compliance → code quality），对比 oh-my-pi 的 /task done 单阶段验证
+  - 深读 writing-plans 的任务粒度规范（2-5 min/step、TDD 步骤、No Placeholders 规则），对比 oh-my-pi 的 task-next 输出格式
+  - 综合三个维度，写一份 compound 文档：superpowers 对 oh-my-pi workflow 的具体改进建议（skill 自动触发、两阶段评审、计划文档自审）
+verify:
+  - "test -f docs/solutions/architecture-patterns/superpowers-workflow-design-insights-*.md"
+key_files:
+  - .omp/prompts/workflow/task-next.md
+  - .omp/prompts/workflow/task-done.md
+  - .omp/commands/shared/workflow-context.ts

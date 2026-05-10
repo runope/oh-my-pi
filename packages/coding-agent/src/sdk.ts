@@ -383,7 +383,13 @@ export interface CreateAgentSessionResult {
 
 export type { PromptTemplate } from "./config/prompt-templates";
 export { Settings, type SkillsSettings } from "./config/settings";
-export type { CustomCommand, CustomCommandFactory } from "./extensibility/custom-commands/types";
+export type {
+	CustomCommand,
+	CustomCommandFactory,
+	ExecOptions,
+	ExecResult,
+	HookCommandContext,
+} from "./extensibility/custom-commands/types";
 export type { CustomTool, CustomToolFactory } from "./extensibility/custom-tools/types";
 export type * from "./extensibility/extensions";
 export type { Skill } from "./extensibility/skills";
