@@ -114,10 +114,11 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 				const result = extractMCPServers(config, configPath, "user");
 				items.push(...result.items);
 				if (result.warnings) warnings.push(...result.warnings);
-				break;
+				if (result.items.length > 0) break; // Found servers, stop looking
 			}
 		}
 	}
+
 
 	// Project-level: try opencode.json then .opencode/config.json
 	for (const name of ["opencode.json", ".opencode/config.json"]) {
@@ -127,7 +128,8 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 			const result = extractMCPServers(config, configPath, "project");
 			items.push(...result.items);
 			if (result.warnings) warnings.push(...result.warnings);
-			break;
+			if (result.items.length > 0) break; // Found servers, stop looking
+
 		}
 	}
 
@@ -169,10 +171,22 @@ function extractMCPServers(
 			transport = "stdio";
 		}
 
+		// OpenCode allows command as string or string[]. Normalize to string + args.
+		const rawCommand: unknown = serverConfig.command;
+		let command: string | undefined;
+		let args = Array.isArray(serverConfig.args) ? (serverConfig.args as string[]) : undefined;
+		if (Array.isArray(rawCommand)) {
+			args = rawCommand.slice(1).map(String);
+			command = String(rawCommand[0]);
+		} else if (typeof rawCommand === "string") {
+			command = rawCommand;
+		}
+
 		items.push({
 			name,
-			command: serverConfig.command,
-			args: Array.isArray(serverConfig.args) ? (serverConfig.args as string[]) : undefined,
+			command,
+			args,
+
 			env: serverConfig.env && typeof serverConfig.env === "object" ? serverConfig.env : undefined,
 			url: typeof serverConfig.url === "string" ? serverConfig.url : undefined,
 			headers: serverConfig.headers && typeof serverConfig.headers === "object" ? serverConfig.headers : undefined,
