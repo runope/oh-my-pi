@@ -1648,6 +1648,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 		subcommands: [
 			{ name: "start", description: "Start WeChat channel" },
 			{ name: "stop", description: "Stop WeChat channel" },
+			{ name: "sync", description: 'Set/clear peer ID for CLI sync: /wechat sync <peerId> (or "self" for auto)' },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -1660,6 +1661,25 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 					runtime.ctx.showStatus("WeChat channel stopped.");
 				} else {
 					runtime.ctx.showStatus("WeChat channel is not running.");
+				}
+				runtime.ctx.editor.setText("");
+				return;
+			}
+
+			// /wechat sync [peerId] — set or clear sync peer on an active channel
+			if (sub.startsWith("sync")) {
+				if (!existing?.isRunning) {
+					runtime.ctx.showStatus("WeChat channel is not running. Start with /wechat first.");
+					runtime.ctx.editor.setText("");
+					return;
+				}
+				const peerId = sub.substring(4).trim();
+				if (peerId) {
+					await existing.setSyncPeerId(peerId);
+					runtime.ctx.showStatus(`WeChat CLI sync set to peer: ${peerId}`);
+				} else {
+					await existing.setSyncPeerId(undefined);
+					runtime.ctx.showStatus("WeChat CLI sync cleared.");
 				}
 				runtime.ctx.editor.setText("");
 				return;

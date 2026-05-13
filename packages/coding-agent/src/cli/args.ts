@@ -55,6 +55,8 @@ export interface Args {
 
 	/** Enable WeChat channel — bridge WeChat messages into this session */
 	wechat?: boolean;
+	/** Peer ID to sync CLI input/output to when --wechat is active. Use "self" to auto-sync to the most recent WeChat user. */
+	wechatSync?: string;
 }
 
 export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { type: "boolean" | "string" }>): Args {
@@ -220,6 +222,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			}
 		} else if (arg === "--wechat") {
 			result.wechat = true;
+		} else if (arg === "--wechat-sync" && i + 1 < args.length) {
+			result.wechatSync = args[++i];
 		} else if (arg === "--skills" && i + 1 < args.length) {
 			// Comma-separated glob patterns for skill filtering
 			result.skills = args[++i].split(",").map(s => s.trim());

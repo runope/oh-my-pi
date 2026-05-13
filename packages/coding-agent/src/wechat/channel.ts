@@ -13,7 +13,7 @@
 
 import { logger } from "@oh-my-pi/pi-utils";
 import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
-import { type ResolvedWeixinAccount, resolveWeixinAccount } from "./account-store";
+import { type ResolvedWeixinAccount, resolveWeixinAccount, saveWeixinAccount } from "./account-store";
 import { getUpdates, sendMessage } from "./api";
 import { getContextToken, restoreContextTokens, setContextToken } from "./context-token-store";
 import { StreamingMarkdownFilter } from "./markdown-filter";
@@ -32,6 +32,13 @@ export interface WechatChannelOptions {
 	signal?: AbortSignal;
 	/** Allow list of WeChat user IDs (empty = allow all) */
 	allowUsers?: string[];
+	/**
+	 * Peer ID to sync CLI input/output to.
+	 * When set, user messages typed in the terminal (not from WeChat) and
+	 * the corresponding agent responses are forwarded to this WeChat peer.
+	 * Use "self" to auto-sync to the most recent WeChat user who messaged the bot.
+	 */
+	syncPeerId?: string;
 }
 
 // ============================================================================
@@ -47,6 +54,8 @@ export class WechatChannel {
 	/** Queue of peer IDs that have pending WeChat-initiated turns awaiting replies */
 	#wxReplyQueue: string[] = [];
 	#unsubscribe: (() => void) | null = null;
+	/** Most recent WeChat user ID that messaged the bot (used for "self" sync) */
+	#lastPeerId: string | undefined;
 
 	constructor(options: WechatChannelOptions = {}) {
 		this.#options = {
@@ -59,6 +68,17 @@ export class WechatChannel {
 		return this.#running;
 	}
 
+	/** The last WeChat user ID that messaged this bot, or undefined if none. */
+	get lastPeerId(): string | undefined {
+		return this.#lastPeerId;
+	}
+
+	/** Resolve the effective sync peer, handling the "self" alias. */
+	get #effectiveSyncPeerId(): string | undefined {
+		const id = this.#options.syncPeerId;
+		if (!id) return undefined;
+		return id === "self" ? this.#lastPeerId : id;
+	}
 	/**
 	 * Attach to an existing AgentSession and start polling WeChat.
 	 * Call after the main OMP session is created.
@@ -76,6 +96,10 @@ export class WechatChannel {
 			throw new Error("No WeChat account available. Run `omp wechat login` first.");
 		}
 
+		// Use persisted syncPeerId from account as fallback
+		if (!this.#options.syncPeerId && this.#account.syncPeerId) {
+			this.#options.syncPeerId = this.#account.syncPeerId;
+		}
 		await restoreContextTokens(this.#account.accountId);
 
 		this.#unsubscribe = session.subscribe((event: AgentSessionEvent) => {
@@ -171,6 +195,9 @@ export class WechatChannel {
 		const textBody = extractTextBody(msg.item_list);
 		if (!textBody) return;
 
+		// Track the most recent peer for "self" sync resolution
+		this.#lastPeerId = fromUserId;
+
 		// Push to reply queue — this ties the next agent_end to this WeChat peer.
 		// Agent turns are sequential, so queue order matches turn order.
 		this.#wxReplyQueue.push(fromUserId);
@@ -197,29 +224,76 @@ export class WechatChannel {
 	}
 
 	// ============================================================================
+	/**
+	 * Update the sync peer ID at runtime.
+	 * Pass undefined to disable syncing.
+	 * Pass null to clear a previously stored value.
+	 */
+	async setSyncPeerId(peerId: string | undefined | null): Promise<void> {
+		this.#options.syncPeerId = peerId ?? undefined;
+		logger.debug("WeChat sync peer updated", { peerId });
+
+		// Persist to account storage
+		if (this.#account) {
+			try {
+				await saveWeixinAccount(this.#account.accountId, { syncPeerId: peerId ?? null });
+			} catch (err) {
+				logger.error("Failed to persist syncPeerId", { error: String(err) });
+			}
+		}
+	}
+
+	// ============================================================================
 	// Agent event handling
 	// ============================================================================
 
 	#handleAgentEvent(event: AgentSessionEvent): void {
+		// Forward CLI-originated user input to sync peer (if configured)
+		if (event.type === "message_start" && event.message.role === "user") {
+			const syncPeerId = this.#effectiveSyncPeerId;
+			if (syncPeerId && this.#wxReplyQueue.length === 0) {
+				const text = extractUserText(event.message);
+				if (text) {
+					this.#sendWechatMessage(syncPeerId, text).catch(err => {
+						logger.error("Failed to sync CLI input to WeChat", { error: String(err) });
+					});
+				}
+			}
+			return;
+		}
+
 		if (event.type !== "agent_end") return;
 
+		// WeChat-originated turn: send response back through the reply queue
 		const peerId = this.#wxReplyQueue.shift();
-		if (!peerId) return;
+		if (peerId) {
+			if (!("messages" in event)) return;
+			const messages = event.messages;
+			const lastAssistant = findLastByRole(messages, "assistant");
+			if (!lastAssistant) return;
+			const fullText = extractAssistantText(lastAssistant);
+			if (!fullText) return;
+			const filtered = filterForWechat(fullText);
+			this.#sendWechatMessage(peerId, filtered).catch(err => {
+				logger.error("Failed to send WeChat response", { peerId, error: String(err) });
+			});
+			return;
+		}
 
-		// Extract the last assistant message text from the event's message history.
-		// agent_end.messages includes the full history; find the most recent assistant.
+		// CLI-originated turn: forward to sync peer if configured
+		const syncPeerId = this.#effectiveSyncPeerId;
+		if (!syncPeerId) return;
+
 		if (!("messages" in event)) return;
-
 		const messages = event.messages;
 		const lastAssistant = findLastByRole(messages, "assistant");
 		if (!lastAssistant) return;
-
 		const fullText = extractAssistantText(lastAssistant);
 		if (!fullText) return;
 
 		const filtered = filterForWechat(fullText);
-		this.#sendWechatMessage(peerId, filtered).catch(err => {
-			logger.error("Failed to send WeChat response", { peerId, error: String(err) });
+		this.#sendWechatMessage(syncPeerId, filtered).catch(err => {
+			logger.error("Failed to sync CLI output to WeChat", { error: String(err) });
 		});
 	}
 
@@ -299,6 +373,18 @@ function extractTextBody(itemList?: WeixinMessage["item_list"]): string {
 		}
 	}
 	return "";
+}
+/**
+ * Extract concatenated text from a user message's content blocks.
+ */
+function extractUserText(message: { content: { type: string; text?: string }[] }): string {
+	const textParts: string[] = [];
+	for (const block of message.content) {
+		if (block.type === "text" && block.text) {
+			textParts.push(block.text);
+		}
+	}
+	return textParts.join("\n");
 }
 
 function filterForWechat(text: string): string {

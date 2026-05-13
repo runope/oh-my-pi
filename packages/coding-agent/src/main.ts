@@ -1033,9 +1033,14 @@ export async function runRootCommand(
 			// Attach WeChat channel if --wechat flag is set
 			if (parsedArgs.wechat) {
 				try {
-					const wechatChannel = new WechatChannel({ cwd: parsedArgs.cwd });
+					const wechatChannel = new WechatChannel({
+						cwd: parsedArgs.cwd,
+						syncPeerId: parsedArgs.wechatSync,
+					});
 					await wechatChannel.attach(session);
-					notifs.push({ kind: "info", message: "WeChat channel active \u2014 messages from WeChat will appear here" });
+					const syncLabel = parsedArgs.wechatSync === "self" ? "auto (last WeChat user)" : parsedArgs.wechatSync;
+					const syncMsg = syncLabel ? ` \u2014 CLI input/output synced to ${syncLabel}` : "";
+					notifs.push({ kind: "info", message: `WeChat channel active${syncMsg}` });
 				} catch (err) {
 					const wechatError = err instanceof Error ? err.message : String(err);
 					notifs.push({ kind: "error", message: `WeChat channel failed: ${wechatError}` });

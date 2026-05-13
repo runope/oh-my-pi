@@ -35,11 +35,12 @@ function resolveAccountPath(accountId: string): string {
 // ============================================================================
 // Account data types
 // ============================================================================
-
 export interface WeixinAccountData {
 	token?: string;
 	baseUrl?: string;
 	userId?: string;
+	/** Peer ID to sync CLI input/output to (persisted across sessions) */
+	syncPeerId?: string;
 	/** When the account was registered (ISO string) */
 	createdAt?: string;
 	/** When the account was last used */
@@ -51,6 +52,8 @@ export interface ResolvedWeixinAccount {
 	token: string;
 	baseUrl: string;
 	userId?: string;
+	/** Persisted sync peer ID, if one was saved */
+	syncPeerId?: string;
 }
 
 // ============================================================================
@@ -106,7 +109,7 @@ export async function loadWeixinAccount(accountId: string): Promise<WeixinAccoun
 /** Persist account data after QR login (merges into existing file) */
 export async function saveWeixinAccount(
 	accountId: string,
-	update: { token?: string; baseUrl?: string; userId?: string },
+	update: { token?: string; baseUrl?: string; userId?: string; syncPeerId?: string | null },
 ): Promise<void> {
 	await ensureDir(resolveAccountsDir());
 
@@ -117,6 +120,11 @@ export async function saveWeixinAccount(
 		createdAt: existing?.createdAt ?? new Date().toISOString(),
 		lastUsedAt: new Date().toISOString(),
 	};
+
+	// null syncPeerId means delete the stored value
+	if (update.syncPeerId === null) {
+		delete data.syncPeerId;
+	}
 
 	await Bun.write(resolveAccountPath(accountId), JSON.stringify(data, null, 2));
 	await registerWeixinAccountId(accountId);
@@ -170,6 +178,7 @@ export async function resolveWeixinAccount(accountId?: string | null): Promise<R
 		token: data.token,
 		baseUrl: data.baseUrl,
 		userId: data.userId,
+		syncPeerId: data.syncPeerId,
 	};
 }
 
