@@ -16,7 +16,7 @@ import { type ResolvedWeixinAccount, resolveWeixinAccount } from "./account-stor
 import { getConfig, getUpdates, sendMessage, sendTyping } from "./api";
 import { getContextToken, restoreContextTokens, setContextToken } from "./context-token-store";
 import { StreamingMarkdownFilter } from "./markdown-filter";
-import { MessageItemType, MessageType, MessageState, TypingStatus, type WeixinMessage } from "./types";
+import { MessageItemType, MessageState, MessageType, TypingStatus, type WeixinMessage } from "./types";
 
 // ============================================================================
 // Types

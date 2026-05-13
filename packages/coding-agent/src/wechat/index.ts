@@ -243,7 +243,6 @@ export async function runWechatCommand(
 			});
 		}
 
-
 		case "bridge": {
 			let accountId: string | undefined;
 			const allowUsers: string[] = [];
@@ -278,7 +277,7 @@ export async function runWechatCommand(
 		default:
 			return {
 				success: false,
-			error: `Unknown wechat subcommand: ${subcommand}\nAvailable: login, start, bridge, status, logout, accounts`,
+				error: `Unknown wechat subcommand: ${subcommand}\nAvailable: login, start, bridge, status, logout, accounts`,
 			};
 	}
 }

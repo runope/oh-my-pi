@@ -17,7 +17,7 @@ import { type ResolvedWeixinAccount, resolveWeixinAccount, saveWeixinAccount } f
 import { getUpdates, sendMessage } from "./api";
 import { getContextToken, restoreContextTokens, setContextToken } from "./context-token-store";
 import { StreamingMarkdownFilter } from "./markdown-filter";
-import { MessageItemType, MessageType, MessageState, type WeixinMessage } from "./types";
+import { MessageItemType, MessageState, MessageType, type WeixinMessage } from "./types";
 
 // ============================================================================
 // Types
@@ -236,7 +236,7 @@ export class WechatChannel {
 		// Persist to account storage
 		if (this.#account) {
 			try {
-				await saveWeixinAccount(this.#account.accountId, { syncPeerId: peerId ?? null });
+				await saveWeixinAccount(this.#account.accountId, { syncPeerId: peerId ?? undefined });
 			} catch (err) {
 				logger.error("Failed to persist syncPeerId", { error: String(err) });
 			}
@@ -340,7 +340,6 @@ export class WechatChannel {
 	}
 }
 
-
 // ============================================================================
 // Module-level singleton — allows the slash command to reference
 // the active channel created either via `omp --wechat` or `/wechat`.
@@ -377,8 +376,9 @@ function extractTextBody(itemList?: WeixinMessage["item_list"]): string {
 /**
  * Extract concatenated text from a user message's content blocks.
  */
-function extractUserText(message: { content: { type: string; text?: string }[] }): string {
+function extractUserText(message: { content: string | { type: string; text?: string }[] }): string {
 	const textParts: string[] = [];
+	if (typeof message.content === "string") return message.content;
 	for (const block of message.content) {
 		if (block.type === "text" && block.text) {
 			textParts.push(block.text);

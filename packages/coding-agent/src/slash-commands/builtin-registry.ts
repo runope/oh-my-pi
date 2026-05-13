@@ -23,6 +23,7 @@ import { resolveMemoryBackend } from "../memory-backend";
 import type { InteractiveModeContext } from "../modes/types";
 import { formatShakeSummary, type ShakeMode } from "../session/shake-types";
 import { getChangelogPath, parseChangelog } from "../utils/changelog";
+import { getActiveChannel, WechatChannel } from "../wechat/channel";
 import { buildContextReportText } from "./helpers/context-report";
 import { formatDuration } from "./helpers/format";
 import { createMarketplaceManager } from "./helpers/marketplace-manager";
@@ -31,7 +32,6 @@ import { commandConsumed, errorMessage, parseSlashCommand, parseSubcommand, usag
 import { handleSshAcp } from "./helpers/ssh";
 import { handleTodoAcp } from "./helpers/todo";
 import { buildUsageReportText } from "./helpers/usage-report";
-import { getActiveChannel, WechatChannel } from "../wechat/channel";
 import { parseMarketplaceInstallArgs, parsePluginScopeArgs } from "./marketplace-install-parser";
 import type {
 	BuiltinSlashCommand,
@@ -1651,7 +1651,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "sync", description: 'Set/clear peer ID for CLI sync: /wechat sync <peerId> (or "self" for auto)' },
 		],
 		allowArgs: true,
-		handle: async (command, runtime) => {
+		handleTui: async (command, runtime) => {
 			const existing = getActiveChannel();
 			const sub = command.args.trim().toLowerCase();
 
@@ -1697,9 +1697,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 				await channel.attach(runtime.ctx.session);
 				runtime.ctx.showStatus("WeChat channel active — messages will appear here.");
 			} catch (err) {
-				runtime.ctx.showError(
-					err instanceof Error ? err.message : "Failed to start WeChat channel",
-				);
+				runtime.ctx.showError(err instanceof Error ? err.message : "Failed to start WeChat channel");
 			}
 			runtime.ctx.editor.setText("");
 		},

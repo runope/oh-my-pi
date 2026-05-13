@@ -20,7 +20,7 @@ import { type ResolvedWeixinAccount, resolveWeixinAccount } from "./account-stor
 import { getConfig, getUpdates, sendMessage, sendTyping } from "./api";
 import { getContextToken, restoreContextTokens, setContextToken } from "./context-token-store";
 import { StreamingMarkdownFilter } from "./markdown-filter";
-import { MessageItemType, MessageType, MessageState, TypingStatus, type WeixinMessage } from "./types";
+import { MessageItemType, MessageState, MessageType, TypingStatus, type WeixinMessage } from "./types";
 
 // ============================================================================
 // Types
@@ -140,7 +140,6 @@ export class WechatBridge {
 		this.#print("");
 
 		// Start stdin reader and poll loop concurrently
-		const { signal } = this.#options;
 		const stdinPromise = this.#startStdinReader();
 		const pollPromise = this.#pollLoop();
 
@@ -217,7 +216,9 @@ export class WechatBridge {
 				}
 
 				if (trimmed === "/status") {
-					const peerInfo = this.#currentPeerId ? `Last peer: ${shortenPeerId(this.#currentPeerId)}` : "No messages yet";
+					const peerInfo = this.#currentPeerId
+						? `Last peer: ${shortenPeerId(this.#currentPeerId)}`
+						: "No messages yet";
 					const msgCount = this.#session?.state.messages.length ?? 0;
 					this.#print(formatSystem(`${peerInfo} | Session messages: ${msgCount}`));
 					this.#rl?.prompt();
@@ -257,11 +258,15 @@ export class WechatBridge {
 			// Also stop on signal
 			const { signal } = this.#options;
 			if (signal) {
-				signal.addEventListener("abort", () => {
-					this.#rl?.close();
-					this.#running = false;
-					resolve();
-				}, { once: true });
+				signal.addEventListener(
+					"abort",
+					() => {
+						this.#rl?.close();
+						this.#running = false;
+						resolve();
+					},
+					{ once: true },
+				);
 			}
 		});
 	}

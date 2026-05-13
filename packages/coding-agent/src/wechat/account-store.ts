@@ -109,7 +109,7 @@ export async function loadWeixinAccount(accountId: string): Promise<WeixinAccoun
 /** Persist account data after QR login (merges into existing file) */
 export async function saveWeixinAccount(
 	accountId: string,
-	update: { token?: string; baseUrl?: string; userId?: string; syncPeerId?: string | null },
+	update: { token?: string; baseUrl?: string; userId?: string; syncPeerId?: string },
 ): Promise<void> {
 	await ensureDir(resolveAccountsDir());
 
@@ -122,7 +122,7 @@ export async function saveWeixinAccount(
 	};
 
 	// null syncPeerId means delete the stored value
-	if (update.syncPeerId === null) {
+	if (update.syncPeerId === undefined) {
 		delete data.syncPeerId;
 	}
 

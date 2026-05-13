@@ -120,7 +120,7 @@ async function renderQRCode(qrcodeUrl: string, qrcodeData: string): Promise<void
 	// Try rendering ASCII QR code in terminal
 	if (qrcodeUrl) {
 		try {
-		// @ts-expect-error -- qrcode-terminal has no bundled types; declaration in bun-imports.d.ts
+			// @ts-expect-error -- qrcode-terminal has no bundled types; declaration in bun-imports.d.ts
 			const qrcodeTerminal = await import("qrcode-terminal");
 			qrcodeTerminal.default.generate(qrcodeUrl, { small: true });
 			console.log("If the QR code is not visible, open this URL in a browser:");
