@@ -128,7 +128,11 @@ export class WechatChannel {
 		this.#unsubscribe = null;
 		logger.debug("WeChat channel detached");
 
-		setActiveChannel(null);
+		// Clear active channel directly to avoid recursive
+		// setActiveChannel → detach → setActiveChannel loop.
+		if (_activeChannel === this) {
+			_activeChannel = null;
+		}
 	}
 
 	// ============================================================================
