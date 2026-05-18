@@ -83,8 +83,16 @@ export function detectOpenAICompat(model: Model<"openai-completions">, resolvedB
 		provider === "deepseek" ||
 		baseUrl.includes("deepseek.com") ||
 		lowerId.includes("deepseek") ||
-		lowerName.includes("deepseek") ||
+	lowerName.includes("deepseek") ||
 		isOpenCodeDeepseekAlias;
+	// Xiaomi MiMo's OpenAI-compatible endpoint (api.xiaomimimo.com, token-plan-cn.xiaomimimo.com)
+	// rejects follow-up requests in thinking mode unless prior assistant turns include
+	// `reasoning_content`, same invariant as DeepSeek/Kimi.
+	const isXiaomiMiMo =
+		provider.startsWith("xiaomi") ||
+		baseUrl.includes("xiaomimimo.com") ||
+		lowerId.startsWith("xiaomi/") ||
+		lowerId.includes("mimo-");
 	const isDirectDeepseekApi = provider === "deepseek" || baseUrl.includes("api.deepseek.com");
 	const isDirectDeepseekReasoning = isDirectDeepseekApi && isDeepseekFamily && Boolean(model.reasoning);
 	const isNonStandard =
@@ -101,6 +109,7 @@ export function detectOpenAICompat(model: Model<"openai-completions">, resolvedB
 		isZhipu ||
 		isKilo ||
 		isQwen ||
+		isXiaomiMiMo ||
 		provider === "opencode-zen" ||
 		provider === "opencode-go" ||
 		baseUrl.includes("opencode.ai");
@@ -224,17 +233,20 @@ export function detectOpenAICompat(model: Model<"openai-completions">, resolvedB
 		reasoningContentField: "reasoning_content",
 		// Backends that 400 follow-up requests when prior assistant tool-call turns lack `reasoning_content`:
 		//   - Kimi: documented invariant on its native API.
-		//   - DeepSeek-family reasoning models, including aliased OpenCode Zen models
+	//   - DeepSeek-family reasoning models, including aliased OpenCode Zen models
 		//     like `big-pickle`, validate exact thinking-mode replay.
 		//   - Any reasoning-capable model reached through OpenRouter can enforce this
 		//     server-side whenever the request is in thinking mode. We can't translate
 		//     Anthropic's redacted/encrypted reasoning into provider-native plaintext,
 		//     so cross-provider continuations rely on a placeholder.
+		//   - Xiaomi MiMo's OpenAI-compatible endpoints (api.xiaomimimo.com, token-plan-cn.xiaomimimo.com)
+		//     enforce the same invariant.
 		// OpenCode Kimi aliases handle reasoning content internally and reject
 		// client-sent `reasoning_content`, so exclude only that Kimi-on-OpenCode path.
 		requiresReasoningContentForToolCalls:
 			(isKimiModel && !isOpenCodeProvider) ||
 			(isDeepseekFamily && Boolean(model.reasoning)) ||
+			(isXiaomiMiMo && Boolean(model.reasoning)) ||
 			((provider === "openrouter" || baseUrl.includes("openrouter.ai")) && Boolean(model.reasoning)),
 		// DeepSeek V4 rejects synthetic reasoning_content placeholders (".") on tool-call turns.
 		// Kimi and OpenRouter accept them when actual reasoning is unavailable.
