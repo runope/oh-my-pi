@@ -21,6 +21,9 @@ This repo contains multiple packages, but **`packages/coding-agent/`** is the pr
 
 docs/solutions/  # 已记录的问题解决方案（bug、最佳实践、工作流模式），按分类组织，YAML frontmatter 可搜索
 
+## GIT Workflow
+- Follow the [GIT_WORKFLOW.md](GIT_WORKFLOW.md) for daily development.
+
 ## Code Quality
 
 - No `any` unless absolutely necessary.
