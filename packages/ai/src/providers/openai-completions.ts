@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { $env, extractHttpStatusFromError } from "@oh-my-pi/pi-utils";
 import OpenAI, { APIConnectionTimeoutError as OpenAIConnectionTimeoutError } from "openai";
 import type {
@@ -465,6 +466,11 @@ export const streamOpenAICompletions: StreamFunction<"openai-completions"> = (
 				);
 				appliedToolStrictMode = toolStrictMode;
 				options?.onPayload?.(params);
+				// Refresh per-request ID for opencode providers (each call including retries
+				// sends a unique x-opencode-request to avoid rate-limiting on duplicate IDs).
+				if (model.provider === "opencode-zen" || model.provider === "opencode-go") {
+					requestHeaders["x-opencode-request"] = generateOpenCodeId("msg");
+				}
 				rawRequestDump = {
 					provider: model.provider,
 					api: output.api,
@@ -959,6 +965,36 @@ export const streamOpenAICompletions: StreamFunction<"openai-completions"> = (
 	return stream;
 };
 
+// ---------------------------------------------------------------------------
+// OpenCode Zen / Go — request header helpers
+// ---------------------------------------------------------------------------
+
+/** Generate an opencode-style ID (ses_xxx / msg_xxx). */
+function generateOpenCodeId(prefix: "ses" | "msg"): string {
+	const ts = Date.now();
+	const counter = 1;
+	const n = ~(BigInt(ts) * BigInt(0x1000) + BigInt(counter));
+	const buf = Buffer.alloc(6);
+	for (let i = 0; i < 6; i++) {
+		buf[i] = Number((n >> BigInt(40 - 8 * i)) & BigInt(0xff));
+	}
+	const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+	const bb = crypto.randomBytes(14);
+	let r = "";
+	for (let i = 0; i < 14; i++) {
+		r += chars[bb[i] % 62];
+	}
+	return `${prefix}_${buf.toString("hex")}${r}`;
+}
+
+let _openCodeSessionId: string | undefined;
+function getOpenCodeSessionId(): string {
+	if (!_openCodeSessionId) {
+		_openCodeSessionId = generateOpenCodeId("ses");
+	}
+	return _openCodeSessionId;
+}
+
 async function createClient(
 	model: Model<"openai-completions">,
 	context: Context,
@@ -1024,6 +1060,13 @@ async function createClient(
 		Object.assign(headers, copilot.headers);
 		copilotPremiumRequests = copilot.premiumRequests;
 		baseUrl = resolveGitHubCopilotBaseUrl(model.baseUrl, rawApiKey) ?? model.baseUrl;
+	}
+	const isOpenCodeProvider = model.provider === "opencode-zen" || model.provider === "opencode-go";
+	if (isOpenCodeProvider) {
+		headers["User-Agent"] = "opencode/1.14.19";
+		headers["x-opencode-project"] = process.cwd();
+		headers["x-opencode-session"] = getOpenCodeSessionId();
+		headers["x-opencode-client"] = "cli";
 	}
 	// Azure OpenAI requires /deployments/{id}/chat/completions?api-version=YYYY-MM-DD.
 	// The generic openai-completions path adds neither, producing silent 404s.
